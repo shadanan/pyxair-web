@@ -1,74 +1,52 @@
 from sanic import Sanic
 
-from sanic import response
+from sanic.response import json
 from sanic.websocket import WebSocketProtocol
-import json
+from json import dumps
 import logging
 import pyxair
 
 
 app = Sanic(name="XAir API Proxy")
-xair = pyxair.XAir(pyxair.auto_detect())
+xinfo = pyxair.auto_detect()
+xairs = {xinfo.name: pyxair.XAir(xinfo)}
 
 
-def make_response(message: pyxair.OscMessage):
-    return response.json(
-        {
-            "data": {
-                "id": message.address,
-                "type": "osc",
-                "attributes": {"arguments": message.arguments},
-            }
-        }
-    )
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "*",
+}
 
 
-@app.get("/osc/<address:path>")
-async def osc_get(req, address):
+@app.get("/xair/<xair:string>/osc/<address:path>")
+async def osc_get(req, xair, address):
     address = "/" + address
-    message: pyxair.OscMessage = await xair.get(address)
-    return response.json(
-        message._asdict(),
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "*",
-        },
-    )
+    message = await xairs[xair].get(address)
+    return json({**message._asdict(), **{"xair": xair}}, headers=CORS_HEADERS)
 
 
-@app.patch("/osc/<address:path>")
-async def osc_patch(req, address):
-    await xair.put(req.json["address"], req.json["arguments"])
-    return response.json(
-        req.json,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "*",
-        },
-    )
+@app.patch("/xair/<xair:string>/osc/<address:path>")
+async def osc_patch(req, xair, address):
+    await xairs[xair].put(req.json["address"], req.json["arguments"])
+    return json({**req.json, **{"xair": xair}}, headers=CORS_HEADERS)
 
 
-@app.options("/osc/<address:path>")
-async def osc_options(req, address):
+@app.options("/xair/<xair:string>/osc/<address:path>")
+async def osc_options(req, xair, address):
     address = "/" + address
-    return response.json(
-        {"address": address},
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "*",
-        },
-    )
+    return json({"xair": xair, "address": address}, headers=CORS_HEADERS)
 
 
-@app.websocket("/feed")
+@app.websocket("/xair/<xair:string>/feed")
 async def feed(req, ws):
-    with xair.subscribe() as queue:
+    with xairs[xair].subscribe() as queue:
         while True:
-            message: pyxair.OscMessage = await queue.get()
-            await ws.send(json.dumps(message._asdict()))
+            message = await queue.get()
+            await ws.send(dumps(message._asdict()))
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    app.add_task(xair.monitor())
+    for xair in xairs.values():
+        app.add_task(xair.monitor())
     app.run(host="0.0.0.0", port=8000, protocol=WebSocketProtocol, auto_reload=True)
