@@ -38,11 +38,11 @@ async def osc_options(req, xair, address):
 
 
 @app.websocket("/xair/<xair:string>/feed")
-async def feed(req, ws):
+async def feed(req, ws, xair):
     with xairs[xair].subscribe() as queue:
         while True:
             message = await queue.get()
-            await ws.send(dumps(message._asdict()))
+            await ws.send(dumps({**message._asdict(), **{"xair": xair}}))
 
 
 if __name__ == "__main__":
