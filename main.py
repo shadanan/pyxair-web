@@ -46,7 +46,10 @@ async def feed(req, ws, xair):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(
+        format="[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s",
+        level=logging.INFO,
+    )
     for xair in xairs.values():
         app.add_task(xair.monitor())
     app.run(host="0.0.0.0", port=8000, protocol=WebSocketProtocol, auto_reload=True)
