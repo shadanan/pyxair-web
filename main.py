@@ -27,7 +27,7 @@ async def osc_get(req, xair, address):
 
 @app.patch("/xair/<xair:string>/osc/<address:path>")
 async def osc_patch(req, xair, address):
-    await xairs[xair].put(req.json["address"], req.json["arguments"])
+    xairs[xair].put(req.json["address"], req.json["arguments"])
     return json({**req.json, **{"xair": xair}}, headers=CORS_HEADERS)
 
 
