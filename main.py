@@ -1,12 +1,11 @@
-from sanic import Sanic
+import logging
+import pyxair
 
+from sanic import Sanic
 from sanic.exceptions import NotFound
 from sanic.response import json
 from sanic.websocket import WebSocketProtocol
 from json import dumps
-import logging
-import pyxair
-
 
 app = Sanic(name="XAir API Proxy")
 xairs = pyxair.XAirTaskManager()
@@ -61,10 +60,16 @@ async def feed(req, ws, name):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        format="[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s",
-        level=logging.INFO,
+    logger = logging.getLogger("pyxair")
+    logger.setLevel(logging.INFO)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+        "%(asctime)s [%(name)s] [%(levelname)s] %(message)s", "[%Y-%m-%d %H:%M:%S %z]"
     )
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
     app.add_task(xairs.start())
     app.run(
         host="0.0.0.0",
