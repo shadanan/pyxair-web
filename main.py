@@ -8,7 +8,7 @@ from sanic.websocket import WebSocketProtocol
 from json import dumps
 
 app = Sanic(name="XAir API Proxy")
-xairs = pyxair.XAirTaskManager()
+xairs = pyxair.XAirScanner(connect=True)
 
 
 CORS_HEADERS = {
@@ -18,15 +18,15 @@ CORS_HEADERS = {
 
 
 def get_xair(name):
-    xinfos = {xinfo for xinfo in xairs.list_xairs() if xinfo.name == name}
+    xinfos = {xinfo for xinfo in xairs.list() if xinfo.name == name}
     if len(xinfos) == 0:
         raise NotFound(f"Requested XAir {name} not found")
-    return xairs.get_xair(xinfos.pop())
+    return xairs.get(xinfos.pop())
 
 
 @app.get("/xair")
 async def xair(req):
-    return json({"xair": [x.name for x in xairs.list_xairs()]}, headers=CORS_HEADERS)
+    return json({"xair": [x.name for x in xairs.list()]}, headers=CORS_HEADERS)
 
 
 @app.get("/xair/<name:string>/osc/<address:path>")
