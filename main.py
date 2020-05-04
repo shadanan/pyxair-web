@@ -11,12 +11,6 @@ app = Sanic(name="XAir API Proxy")
 xairs = pyxair.XAirScanner(connect=True)
 
 
-CORS_HEADERS = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "*",
-}
-
-
 def get_xair(name):
     xinfos = {xinfo for xinfo in xairs.list() if xinfo.name == name}
     if len(xinfos) == 0:
@@ -26,7 +20,7 @@ def get_xair(name):
 
 @app.get("/xair")
 async def xair(req):
-    return json({"xair": [x.name for x in xairs.list()]}, headers=CORS_HEADERS)
+    return json({"xair": [x.name for x in xairs.list()]})
 
 
 @app.get("/xair/<name:string>/osc/<address:path>")
@@ -34,20 +28,14 @@ async def osc_get(req, name, address):
     address = "/" + address
     xair = get_xair(name)
     message = await xair.get(address)
-    return json({**message._asdict(), **{"xair": name}}, headers=CORS_HEADERS)
+    return json({**message._asdict(), **{"xair": name}})
 
 
 @app.patch("/xair/<name:string>/osc/<address:path>")
 async def osc_patch(req, name, address):
     xair = get_xair(name)
     xair.put(req.json["address"], req.json["arguments"])
-    return json({**req.json, **{"xair": name}}, headers=CORS_HEADERS)
-
-
-@app.options("/xair/<name:string>/osc/<address:path>")
-async def osc_options(req, name, address):
-    address = "/" + address
-    return json({"xair": name, "address": address}, headers=CORS_HEADERS)
+    return json({**req.json, **{"xair": name}})
 
 
 @app.websocket("/xair/<name:string>/feed")
