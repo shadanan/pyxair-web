@@ -1,12 +1,13 @@
 import logging
-import pyxair
+from json import dumps
 
+import pyxair
 from sanic import Sanic
 from sanic.exceptions import NotFound
 from sanic.response import json
 from sanic.websocket import WebSocketProtocol
-from json import dumps
 
+logger = logging.getLogger("pyxair.web")
 app = Sanic(name="XAir API Proxy")
 xairs = pyxair.XAirScanner(connect=True)
 
@@ -40,22 +41,27 @@ async def osc_patch(req, name, address):
 
 @app.websocket("/xair/<name:string>/feed")
 async def feed(req, ws, name):
+    logger.info("Connected: %s", req.url)
     xair = get_xair(name)
     with xair.subscribe() as queue:
         while True:
             message = await queue.get()
             await ws.send(dumps({**message._asdict(), **{"xair": name}}))
+    logger.info("Disconnected: %s", req.url)
 
 
 if __name__ == "__main__":
-    logger = logging.getLogger("pyxair")
-    logger.setLevel(logging.INFO)
     ch = logging.StreamHandler()
     ch.setLevel(logging.INFO)
     formatter = logging.Formatter(
         "%(asctime)s [%(name)s] [%(levelname)s] %(message)s", "[%Y-%m-%d %H:%M:%S %z]"
     )
     ch.setFormatter(formatter)
+
+    pyxair_logger = logging.getLogger("pyxair")
+    pyxair_logger.setLevel(logging.DEBUG)
+    pyxair_logger.addHandler(ch)
+    logger.setLevel(logging.DEBUG)
     logger.addHandler(ch)
 
     app.add_task(xairs.start())
