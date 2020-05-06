@@ -1,4 +1,5 @@
 import logging
+from asyncio import CancelledError
 from json import dumps
 
 import pyxair
@@ -41,13 +42,15 @@ async def osc_patch(req, name, address):
 
 @app.websocket("/xair/<name:string>/feed")
 async def feed(req, ws, name):
-    logger.info("Connected: %s", req.url)
     xair = get_xair(name)
-    with xair.subscribe() as queue:
-        while True:
-            message = await queue.get()
-            await ws.send(dumps({**message._asdict(), **{"xair": name}}))
-    logger.info("Disconnected: %s", req.url)
+    try:
+        logger.info("Subscribed: %s", req.socket)
+        with xair.subscribe() as queue:
+            while ws.open:
+                message = await queue.get()
+                await ws.send(dumps({**message._asdict(), **{"xair": name}}))
+    finally:
+        logger.info("Unsubscribed: %s", req.socket)
 
 
 if __name__ == "__main__":
@@ -61,8 +64,6 @@ if __name__ == "__main__":
     pyxair_logger = logging.getLogger("pyxair")
     pyxair_logger.setLevel(logging.DEBUG)
     pyxair_logger.addHandler(ch)
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(ch)
 
     app.add_task(xairs.start())
     app.run(
