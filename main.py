@@ -9,8 +9,8 @@ from sanic.response import json
 from sanic.websocket import WebSocketProtocol
 
 logger = logging.getLogger("pyxair.web")
-app = Sanic(name="XAir API Proxy")
 xairs = pyxair.XAirScanner(connect=True)
+app = Sanic(name="XAir API Proxy")
 
 
 def get_xair(name):
@@ -51,6 +51,10 @@ async def feed(req, ws, name):
                 await ws.send(dumps({**message._asdict(), **{"xair": name}}))
     finally:
         logger.info("Unsubscribed: %s", req.socket)
+
+
+app.static("", "./static/index.html")
+app.static("", "./static")
 
 
 if __name__ == "__main__":
