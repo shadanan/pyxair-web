@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
+import asyncio
 import logging
-from asyncio import CancelledError
 from json import dumps
 
 import pyxair
@@ -10,40 +10,60 @@ from sanic.response import json
 from sanic.websocket import WebSocketProtocol
 
 logger = logging.getLogger("pyxair.web")
-xairs = pyxair.XAirScanner(connect=True)
 app = Sanic(name="XAir API Proxy")
 
 
-def get_xair(name):
-    xinfos = {xinfo for xinfo in xairs.list() if xinfo.name == name}
-    if len(xinfos) == 0:
-        raise NotFound(f"Requested XAir {name} not found")
-    return xairs.get(xinfos.pop())
+class XAirMonitor:
+    def __init__(self):
+        self._xinfos = {}
+        self._scanner = pyxair.XAirScanner(connect=True)
+
+    async def start(self):
+        scanner_task = asyncio.create_task(self._scanner.start())
+        with self._scanner.subscribe() as queue:
+            try:
+                while True:
+                    self._xinfos = {xinfo.name: xinfo for xinfo in await queue.get()}
+                    for name in self._xinfos.keys():
+                        self.get(name).enable_meter(2)
+            except asyncio.CancelledError:
+                await scanner_task
+
+    def get(self, name):
+        if name not in self._xinfos:
+            raise NotFound(f"Requested XAir {name} not found")
+        return self._scanner.get(self._xinfos[name])
+
+    def list(self):
+        return list(self._xinfos.keys())
+
+
+xmon = XAirMonitor()
 
 
 @app.get("/xair")
 async def xair(req):
-    return json({"xair": [x.name for x in xairs.list()]})
+    return json({"xair": xmon.list()})
 
 
 @app.get("/xair/<name:string>/osc/<address:path>")
 async def osc_get(req, name, address):
     address = "/" + address
-    xair = get_xair(name)
+    xair = xmon.get(name)
     message = await xair.get(address)
     return json({**message._asdict(), **{"xair": name}})
 
 
 @app.patch("/xair/<name:string>/osc/<address:path>")
 async def osc_patch(req, name, address):
-    xair = get_xair(name)
+    xair = xmon.get(name)
     xair.put(req.json["address"], req.json["arguments"])
     return json({**req.json, **{"xair": name}})
 
 
 @app.websocket("/xair/<name:string>/feed")
 async def feed(req, ws, name):
-    xair = get_xair(name)
+    xair = xmon.get(name)
     try:
         logger.info("Subscribed: %s", req.socket)
         with xair.subscribe() as queue:
@@ -70,11 +90,7 @@ if __name__ == "__main__":
     pyxair_logger.setLevel(logging.DEBUG)
     pyxair_logger.addHandler(ch)
 
-    app.add_task(xairs.start())
+    app.add_task(xmon.start())
     app.run(
-        host="0.0.0.0",
-        port=8000,
-        protocol=WebSocketProtocol,
-        debug=True,
-        auto_reload=True,
+        host="0.0.0.0", port=8000, protocol=WebSocketProtocol, auto_reload=True,
     )
