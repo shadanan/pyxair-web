@@ -42,8 +42,20 @@ xmon = XAirMonitor()
 
 
 @app.get("/xair")
-async def xair(req):
+async def xair_get(req):
     return json({"xair": xmon.list()})
+
+
+@app.websocket("/feed")
+async def xair_feed(req, ws):
+    try:
+        logger.info("Subscribed: %s", req.socket)
+        with xmon._scanner.subscribe() as queue:
+            while ws.open:
+                xinfos = await queue.get()
+                await ws.send(dumps({"xair": [xinfo.name for xinfo in xinfos]}))
+    finally:
+        logger.info("Unsubscribed: %s", req.socket)
 
 
 @app.get("/xair/<name:string>/osc/<address:path>")
@@ -62,16 +74,16 @@ async def osc_patch(req, name, address):
 
 
 @app.websocket("/xair/<name:string>/feed")
-async def feed(req, ws, name):
+async def osc_feed(req, ws, name):
     xair = xmon.get(name)
     try:
-        logger.info("Subscribed: %s", req.socket)
+        logger.info("Subscribed %s: %s", name, req.socket)
         with xair.subscribe() as queue:
             while ws.open:
                 message = await queue.get()
                 await ws.send(dumps({**message._asdict(), **{"xair": name}}))
     finally:
-        logger.info("Unsubscribed: %s", req.socket)
+        logger.info("Unsubscribed %s: %s", name, req.socket)
 
 
 app.static("", "./static/index.html")
