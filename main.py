@@ -41,13 +41,13 @@ class XAirMonitor:
 xmon = XAirMonitor()
 
 
-@app.get("/xair")
-async def xair_get(req):
+@app.get("/api/xairs")
+async def xairs_get(req):
     return json({"xair": xmon.list()})
 
 
-@app.websocket("/feed")
-async def xair_feed(req, ws):
+@app.websocket("/ws/xairs")
+async def xairs_ws(req, ws):
     try:
         logger.info("Subscribed: %s", req.socket)
         with xmon._scanner.subscribe() as queue:
@@ -58,7 +58,7 @@ async def xair_feed(req, ws):
         logger.info("Unsubscribed: %s", req.socket)
 
 
-@app.get("/xair/<name:string>/osc/<address:path>")
+@app.get("/api/xairs/<name:string>/addresses/<address:path>")
 async def osc_get(req, name, address):
     address = "/" + address
     xair = xmon.get(name)
@@ -66,14 +66,14 @@ async def osc_get(req, name, address):
     return json({**message._asdict(), **{"xair": name}})
 
 
-@app.patch("/xair/<name:string>/osc/<address:path>")
+@app.patch("/api/xairs/<name:string>/addresses/<address:path>")
 async def osc_patch(req, name, address):
     xair = xmon.get(name)
     xair.put(req.json["address"], req.json["arguments"])
     return json({**req.json, **{"xair": name}})
 
 
-@app.websocket("/xair/<name:string>/feed")
+@app.websocket("/ws/xairs/<name:string>")
 async def osc_feed(req, ws, name):
     xair = xmon.get(name)
     try:
