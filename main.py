@@ -26,6 +26,8 @@ class XAirMonitor:
                     self._xinfos = {xinfo.name: xinfo for xinfo in await queue.get()}
                     for name in self._xinfos.keys():
                         self.get(name).enable_meter(2)
+                        self.get(name).enable_meter(3)
+                        self.get(name).enable_meter(5)
             except asyncio.CancelledError:
                 await scanner_task
 
