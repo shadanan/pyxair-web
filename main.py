@@ -45,7 +45,7 @@ xmon = XAirMonitor()
 
 @app.get("/api/xairs")
 async def xairs_get(req):
-    return json({"xair": xmon.list()})
+    return json({"xairs": xmon.list()})
 
 
 @app.websocket("/ws/xairs")
@@ -55,7 +55,7 @@ async def xairs_ws(req, ws):
         with xmon._scanner.subscribe() as queue:
             while ws.open:
                 xinfos = await queue.get()
-                await ws.send(dumps({"xair": [xinfo.name for xinfo in xinfos]}))
+                await ws.send(dumps({"xairs": [xinfo.name for xinfo in xinfos]}))
     finally:
         logger.info("Unsubscribed: %s", req.socket)
 
