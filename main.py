@@ -75,8 +75,8 @@ async def osc_patch(req, name, address):
     return json({**req.json, **{"xair": name}})
 
 
-@app.websocket("/ws/xairs/<name:string>")
-async def osc_feed(req, ws, name):
+@app.websocket("/ws/xairs/<name:string>/addresses")
+async def osc_ws(req, ws, name):
     xair = xmon.get(name)
     try:
         logger.info("Subscribed %s: %s", name, req.socket)
