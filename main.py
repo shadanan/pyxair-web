@@ -53,6 +53,7 @@ async def xairs_ws(req, ws):
     try:
         logger.info("Subscribed: %s", req.socket)
         with xmon._scanner.subscribe() as queue:
+            await ws.send(dumps({"xairs": xmon.list()}))
             while ws.open:
                 xinfos = await queue.get()
                 await ws.send(dumps({"xairs": [xinfo.name for xinfo in xinfos]}))
