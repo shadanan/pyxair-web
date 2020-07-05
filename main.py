@@ -16,7 +16,7 @@ app = Sanic(name="XAir API Proxy")
 class XAirMonitor:
     def __init__(self):
         self._xinfos = {}
-        self._scanner = pyxair.XAirScanner(connect=True)
+        self._scanner = pyxair.XAirScanner(connect=True, meters=[2, 3, 5])
 
     async def start(self):
         scanner_task = asyncio.create_task(self._scanner.start())
@@ -24,10 +24,6 @@ class XAirMonitor:
             try:
                 while True:
                     self._xinfos = {xinfo.name: xinfo for xinfo in await queue.get()}
-                    for name in self._xinfos.keys():
-                        self.get(name).enable_meter(2)
-                        self.get(name).enable_meter(3)
-                        self.get(name).enable_meter(5)
             except asyncio.CancelledError:
                 await scanner_task
 
@@ -65,7 +61,10 @@ async def xairs_ws(req, ws):
 async def osc_get(req, name, address):
     address = "/" + address
     xair = xmon.get(name)
-    message = await xair.get(address)
+    try:
+        message = await xair.get(address)
+    except asyncio.TimeoutError:
+        raise NotFound(f"Requested address {address} on {name} not found")
     return json({**message._asdict(), **{"xair": name}})
 
 

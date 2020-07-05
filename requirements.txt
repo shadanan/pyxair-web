@@ -1,2 +1,2 @@
-pyxair==0.0.1
+pyxair==0.0.2
 sanic==19.12.2
