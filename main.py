@@ -105,6 +105,4 @@ if __name__ == "__main__":
     pyxair_logger.addHandler(ch)
 
     app.add_task(xmon.start())
-    app.run(
-        host="0.0.0.0", port=8000, protocol=WebSocketProtocol, auto_reload=True,
-    )
+    app.run(host="::", port=8000, protocol=WebSocketProtocol, auto_reload=True)
